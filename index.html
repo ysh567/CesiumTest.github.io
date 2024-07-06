@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>天地图三维服务接入</title>
+    <script type="text/javascript" cesium="true" src="https://api.tianditu.gov.cn/cdn/demo/sanwei/static/cesium/Cesium.js"></script>
+    <script type="text/javascript" cesium="true" src="https://api.tianditu.gov.cn/cdn/plugins/cesium/Cesium_ext_min.js"></script>
+    <script type="text/javascript" cesium="true" src="https://api.tianditu.gov.cn/cdn/plugins/cesium/long.min.js"></script>
+    <script type="text/javascript" cesium="true" src="https://api.tianditu.gov.cn/cdn/plugins/cesium/bytebuffer.min.js"></script>
+    <script type="text/javascript" cesium="true" src="https://api.tianditu.gov.cn/cdn/plugins/cesium/protobuf.min.js"></script>
+    <link rel="stylesheet" cesium="true" href="https://api.tianditu.gov.cn/cdn/demo/sanwei/static/cesium/Widgets/widgets.css">
+    <style>
+        html, body{
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        #cesiumContainer .cesium-viewer-bottom{
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cesiumContainer"></div>
+    <script>
+        var token = '73c68516a383f748a574af78488810b6';
+        // 服务域名
+        var tdtUrl = 'https://t{s}.tianditu.gov.cn/';
+        // 服务负载子域
+        var subdomains=['0','1','2','3','4','5','6','7'];
+    
+        // cesium 初始化
+        // initializeCesium() {
+    viewer = new Cesium.Map("cesiumContainer", {
+    shouldAnimate: true, // 是否启用动画效果。
+    selectionIndicator: false, // 是否显示选中指示器。
+    baseLayerPicker: false, // 是否显示底图选择器。
+    fullscreenButton: false, // 是否显示全屏按钮。
+    geocoder: false, // 是否显示地理编码器（用于地址搜索）。
+    homeButton: false, // 是否显示“回到初始视角”的按钮。
+    infoBox: false, // 是否显示信息框。
+    sceneModePicker: false, // 是否显示场景模式选择器（2D、3D、哥伦布视图）。
+    timeline: false, // 是否显示时间线。
+    navigationHelpButton: false, // 是否显示导航帮助按钮。
+    navigationInstructionsInitiallyVisible: false, // 是否初始显示导航指示。
+    showRenderLoopErrors: false, // 是否显示渲染循环错误。
+    shadows: false, // 是否渲染阴影。
+  });
+    
+    
+  // 抗锯齿。
+  viewer.scene.fxaa = false;
+  // 禁用快速近似抗锯齿(FXAA)后处理阶段。
+  viewer.scene.postProcessStages.fxaa.enabled = false;
+ 
+  if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+    // 判断是否支持图像渲染像素化处理
+    viewer.resolutionScale = window.devicePixelRatio;
+  }
+ 
+  // 启用地球大气层效果（如地平线上的光晕）。
+  viewer.scene.globe.showGroundAtmosphere = true;
+ 
+  // 设置相机的最大俯仰角度，这里设置为-20度（弧度制）。
+  viewer.scene.screenSpaceCameraController.constrainedPitch =
+    Cesium.Math.toRadians(-20);
+ 
+  // 禁用相机在视角重置时自动调整俯仰和方向。
+  viewer.scene.screenSpaceCameraController.autoResetHeadingPitch = false;
+ 
+  // 设置相机缩放的惯性，0.5 表示中等惯性。
+  viewer.scene.screenSpaceCameraController.inertiaZoom = 0.5;
+ 
+  // 设置相机允许的最小缩放距离，单位米。
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance = 50;
+ 
+  // 设置相机允许的最大缩放距离，单位米。
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 20000000;
+ 
+  // 定义相机缩放的触发事件类型。
+  viewer.scene.screenSpaceCameraController.zoomEventTypes = [
+    Cesium.CameraEventType.RIGHT_DRAG, // 右键拖拽
+    Cesium.CameraEventType.WHEEL, // 鼠标滚轮
+    Cesium.CameraEventType.PINCH, // 触摸屏捏合
+  ];
+ 
+  // 定义相机倾斜的触发事件类型。
+  viewer.scene.screenSpaceCameraController.tiltEventTypes = [
+    Cesium.CameraEventType.MIDDLE_DRAG, // 中键拖拽
+    Cesium.CameraEventType.PINCH, // 触摸屏捏合
+    {
+      eventType: Cesium.CameraEventType.LEFT_DRAG,
+      modifier: Cesium.KeyboardEventModifier.CTRL,
+    }, // 按住 CTRL 键的同时左键拖拽
+    {
+      eventType: Cesium.CameraEventType.RIGHT_DRAG,
+      modifier: Cesium.KeyboardEventModifier.CTRL,
+    }, // 按住 CTRL 键的同时右键拖拽
+  ];
+//   
+  // 叠加影像服务(通过使用指定的URL模板请求图块来提供图像)
+  const imgMap = new Cesium.UrlTemplateImageryProvider({
+    url: tdtUrl + "DataServer?T=img_w&x={x}&y={y}&l={z}&tk=" + token,
+    subdomains: subdomains,
+    tilingScheme: new Cesium.WebMercatorTilingScheme(),
+    maximumLevel: 18,
+  });
+  viewer.imageryLayers.addImageryProvider(imgMap);
+ 
+  // 叠加国界服务
+  const iboMap = new Cesium.UrlTemplateImageryProvider({
+    url: tdtUrl + "DataServer?T=ibo_w&x={x}&y={y}&l={z}&tk=" + token,
+    subdomains: subdomains,
+    tilingScheme: new Cesium.WebMercatorTilingScheme(),
+    maximumLevel: 10,
+  });
+  viewer.imageryLayers.addImageryProvider(iboMap);
+
+
+
+  // 取消默认的双击事件
+  viewer.cesiumWidget.screenSpaceEventHandler.removeInputAction(
+    Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK
+  );
+ 
+  // 添加鼠标点击事件监听器
+  const handler = new Cesium.ScreenSpaceEventHandler(
+    viewer.scene.canvas
+  );
+ 
+  handler.setInputAction((click) => {
+    const earthPosition = viewer.scene.pickPosition(click.position);
+ 
+    if (Cesium.defined(earthPosition)) {
+      const cartographic = Cesium.Cartographic.fromCartesian(earthPosition);
+      const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+      const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+      const height = cartographic.height; // 获取高度信息
+ 
+      console.log(`经度: ${longitude}, 纬度: ${latitude}, 高度: ${height}`);
+      // 在这里可以根据经纬度进行进一步的处理
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
+ 
+  // 将三维球定位到中国
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees( 121.28148939885521, 30.702808303473166, 700 ),
+    orientation: {
+      heading: Cesium.Math.toRadians(334.8202942851978),
+      pitch: Cesium.Math.toRadians(-45),
+      roll: Cesium.Math.toRadians(0),
+    },
+    complete: function callback() {
+      // 定位完成之后的回调函数
+    },
+  });
+
+  // 叠加三维地名服务
+  // 叠加三维地名服务
+  const wtfs = new Cesium.GeoWTFS({
+    viewer: this.viewer,
+    //三维地名服务，使用wtfs服务
+    subdomains: cesiumConfig.subdomains,
+    metadata: {
+      boundBox: {
+        minX: -180,
+        minY: -90,
+        maxX: 180,
+        maxY: 90,
+      },
+      minLevel: 1,
+      maxLevel: 20,
+    },
+    depthTestOptimization: true,
+    dTOElevation: 15000,
+    dTOPitch: Cesium.Math.toRadians(-70),
+    aotuCollide: true, //是否开启避让
+    collisionPadding: [5, 10, 8, 5], //开启避让时，标注碰撞增加内边距，上、右、下、左
+    serverFirstStyle: true, //服务端样式优先
+    labelGraphics: {
+      font: "28px sans-serif",
+      fontSize: 28,
+      fillColor: Cesium.Color.WHITE,
+      scale: 0.5,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      showBackground: false,
+      backgroundColor: Cesium.Color.RED,
+      backgroundPadding: new Cesium.Cartesian2(10, 10),
+      horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+      verticalOrigin: Cesium.VerticalOrigin.TOP,
+      eyeOffset: Cesium.Cartesian3.ZERO,
+      pixelOffset: new Cesium.Cartesian2(5, 5),
+      disableDepthTestDistance: undefined,
+    },
+    billboardGraphics: {
+      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+      verticalOrigin: Cesium.VerticalOrigin.CENTER,
+      eyeOffset: Cesium.Cartesian3.ZERO,
+      pixelOffset: Cesium.Cartesian2.ZERO,
+      alignedAxis: Cesium.Cartesian3.ZERO,
+      color: Cesium.Color.WHITE,
+      rotation: 0,
+      scale: 1,
+      width: 18,
+      height: 18,
+      disableDepthTestDistance: undefined,
+    },
+  });
+ 
+  wtfs.getTileUrl = function(){
+        return tdtUrl + 'mapservice/GetTiles?lxys={z},{x},{y}&tk='+ token; 
+    }
+    // 三维图标服务
+    wtfs.getIcoUrl = function(){
+        return tdtUrl + 'mapservice/GetIcon?id={id}&tk='+ token;
+    }
+
+    wtfs.initTDT([{"x":6,"y":1,"level":2,"boundBox":{"minX":90,"minY":0,"maxX":135,"maxY":45}},{"x":7,"y":1,"level":2,"boundBox":{"minX":135,"minY":0,"maxX":180,"maxY":45}},{"x":6,"y":0,"level":2,"boundBox":{"minX":90,"minY":45,"maxX":135,"maxY":90}},{"x":7,"y":0,"level":2,"boundBox":{"minX":135,"minY":45,"maxX":180,"maxY":90}},{"x":5,"y":1,"level":2,"boundBox":{"minX":45,"minY":0,"maxX":90,"maxY":45}},{"x":4,"y":1,"level":2,"boundBox":{"minX":0,"minY":0,"maxX":45,"maxY":45}},{"x":5,"y":0,"level":2,"boundBox":{"minX":45,"minY":45,"maxX":90,"maxY":90}},{"x":4,"y":0,"level":2,"boundBox":{"minX":0,"minY":45,"maxX":45,"maxY":90}},{"x":6,"y":2,"level":2,"boundBox":{"minX":90,"minY":-45,"maxX":135,"maxY":0}},{"x":6,"y":3,"level":2,"boundBox":{"minX":90,"minY":-90,"maxX":135,"maxY":-45}},{"x":7,"y":2,"level":2,"boundBox":{"minX":135,"minY":-45,"maxX":180,"maxY":0}},{"x":5,"y":2,"level":2,"boundBox":{"minX":45,"minY":-45,"maxX":90,"maxY":0}},{"x":4,"y":2,"level":2,"boundBox":{"minX":0,"minY":-45,"maxX":45,"maxY":0}},{"x":3,"y":1,"level":2,"boundBox":{"minX":-45,"minY":0,"maxX":0,"maxY":45}},{"x":3,"y":0,"level":2,"boundBox":{"minX":-45,"minY":45,"maxX":0,"maxY":90}},{"x":2,"y":0,"level":2,"boundBox":{"minX":-90,"minY":45,"maxX":-45,"maxY":90}},{"x":0,"y":1,"level":2,"boundBox":{"minX":-180,"minY":0,"maxX":-135,"maxY":45}},{"x":1,"y":0,"level":2,"boundBox":{"minX":-135,"minY":45,"maxX":-90,"maxY":90}},{"x":0,"y":0,"level":2,"boundBox":{"minX":-180,"minY":45,"maxX":-135,"maxY":90}}]);
+
+
+  
+    </script>
+</body>
+</html>
